@@ -1,118 +1,158 @@
-#include "snake.h"
+#ifndef _SNAKE_H_
+#define _SNAKE_H_
 
-struct snake_node_t *
-snake_new_node(int direction)
-{
-	struct snake_node_t *node = malloc(sizeof(struct snake_node_t));
-	if (!node)
-	{
-		return NULL;
-	}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-	memset(node, 0, sizeof(struct snake_node_t));
+#include "../include/env.h"
+#include "../include/snake.h"
 
-	return node;
-}
+int g_map[Y_FIELD][X_FIELD];
+int g_keystroke;
+int g_gameover;
 
-static int
-illegal_direction(int direction)
-{
-	if (direction != UP && direction != DOWN && direction != LEFT && direction != RIGHT)
-	{
-		return -1;
-	}
-	return 0;
-}
 
-static int
-get_point(struct snake_t *snake)
-{
-    int i;
-    for (i = 0;i < MAX_NUM_POINT;i++)
-    {
-        if (points[i]->x == snake->head->x && points[i]->y == snake->head->y)
-        {
-            return 1;
-        }
+static struct snake_node_t *snake_new_node() {
+    struct snake_node_t *node = malloc(sizeof(struct snake_node_t));
+    if (!node) {
+        return NULL;
     }
-    return 0;
+
+    memset(node, 0, sizeof(struct snake_node_t));
+
+    return node;
 }
 
-static int
-snake_add_head(struct snake_t *snake, int direction)
-{
-	struct snake_t *head = snake->head;
-	struct snake_t *new_head = snake_new_node();
+void snake_init() {
+    struct snake_node_t *head = snake_new_node();
+    struct snake_node_t *body = snake_new_node();
 
-	if (!snake || !new_head)
-	{
-		return -1;
-	}
+    head->x = X_FIELD / 2;
+    head->y = Y_FIELD / 2 - 1;
+    g_map[head->y][head->x] = HEAD;
 
-	switch (direction)
-	{
-	case UP:
-		new_head->x = head->x;
-		new_head->y = head->y - 1;
-		break;
-	case DOWN:
-		new_head->x = head->x;
-		new_head->y = head->y + 1;
-		break;
-	case LEFT:
-		new_head->x = head->x - 1;
-		new_head->y = head->y;
-		break;
-	case RIGHT:
-		new_head->x = head->x + 1;
-		new_head->y = head->y;
-		break;
-	default:
-	}
-    
-	new_head->next = head;
-	snake->head = new_head;
-    snake->direction = direction;
-    snake->length++;
+    body->x = head->x + 1;
+    body->y = head->y;
+    g_map[body->y][body->x] = BODY;
 
-	return 0;
+    head->next = body;
+    body->prev = head;
+
+    g_snake.head = head;
+    g_snake.tail = body;
+    g_snake.direction = LEFT;
 }
 
-static int
-snake_del_tail(struct snake_t *snake)
-{
-	struct *snake_node_t *old_tail = snake->tail;
-	if (!snake)
-	{
-		return -1;
-	}
-
-	snake->tail = old_tail->prev;
-	snake->tail->next = NULL;
-    snake->length--;
-	free(old_tail);
-
-	return 0;
-}
-
-int snake_move(struct snake_t *snake, int direction)
-{
-	if (!snake || illegal_direction(direction))
-	{
-		return -1;
-	}
-    
-    if (snake_add_head(snake, direction))
-    {
+static int illegal_direction(int direction) {
+    if (direction != UP && direction != DOWN && direction != LEFT &&
+        direction != RIGHT) {
         return -1;
     }
+    return 0;
+}
 
-    if (!get_point(snake->head))
-    {
-        if (snake_del_tail(snake))
-        {
-            return -1;
-        }
+static int get_point(struct snake_node_t *head) {
+    if (g_map[head->y][head->x] == POINT) {
+        return 1;
     }
     return 0;
 }
+
+static int snake_add_head(struct snake_t *snake,
+                          struct snake_node_t *new_head) {
+    struct snake_node_t *head = g_snake.head;
+
+    g_map[new_head->y][new_head->x] = HEAD;
+    g_map[head->y][head->x] = BODY;
+    new_head->next = head;
+    head->prev = new_head;
+    snake->head = new_head;
+    snake->length++;
+
+    return 0;
+}
+
+static int snake_del_tail() {
+    struct snake_node_t *tail = g_snake.tail;
+
+    g_map[tail->y][tail->x] = ROAD;
+    g_snake.tail = tail->prev;
+    g_snake.tail->next = NULL;
+    g_snake.length--;
+
+    free(tail);
+
+    return 0;
+}
+
+void snake_move(int direction) {
+
+    struct snake_node_t *new_head;
+    struct snake_node_t *head = g_snake.head;
+
+    if (illegal_direction(direction)) {
+        return;
+    }
+
+    new_head = snake_new_node();
+    switch (direction) {
+    case UP:
+        new_head->x = head->x;
+        new_head->y = head->y - 1;
+        break;
+    case DOWN:
+        new_head->x = head->x;
+        new_head->y = head->y + 1;
+        break;
+    case LEFT:
+        new_head->x = head->x - 1;
+        new_head->y = head->y;
+        break;
+    case RIGHT:
+        new_head->x = head->x + 1;
+        new_head->y = head->y;
+        break;
+    default:
+        break;
+    }
+
+    /* printf("(%d, %d) ---> (%d, %d)\n", head->x, head->y, new_head->x,
+     * new_head->y); */
+
+    if (get_point(new_head)) {
+        generate_point();
+    } else {
+        snake_del_tail(&g_snake);
+    }
+
+    g_snake.direction = direction;
+    snake_add_head(&g_snake, new_head);
+
+    return;
+}
+
+void snake_keep_run() {
+
+    switch (g_keystroke) {
+    case KEY_UP:
+        snake_move(UP);
+        break;
+    case KEY_DOWN:
+        snake_move(DOWN);
+        break;
+    case KEY_LEFT:
+        snake_move(LEFT);
+        break;
+    case KEY_RIGHT:
+        snake_move(RIGHT);
+        break;
+    default:
+        snake_move(g_snake.direction);
+        break;
+    }
+
+    return;
+}
+
+#endif

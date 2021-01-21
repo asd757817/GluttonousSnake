@@ -1,11 +1,32 @@
 #ifndef _ENV_H_
 #define _ENV_H_
 
-#define X_FIELD 80
-#define Y_FIELD 60
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <time.h>
+#include <ncurses.h>
 
-extern int g_map[X_FIELD][Y_FIELD];
-int g_point_x, g_point_y;
-int g_speed = 1;
-void generate_point(void);
+
+#define X_FIELD 40
+#define Y_FIELD 30
+
+#define WALL -1
+#define ROAD 0
+#define HEAD 10
+#define BODY 11
+#define POINT 20
+
+extern int g_map[Y_FIELD][X_FIELD];
+extern int g_speed;
+extern int g_keystroke;
+extern int g_gameover;
+extern int g_speed;
+
+void map_init();
+void generate_point();
+void display_screen();
+void *getkeystroke();
+
 #endif
